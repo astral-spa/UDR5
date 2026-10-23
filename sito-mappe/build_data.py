@@ -14,6 +14,7 @@ Riempie sito-mappe/template.html con i dati e scrive due copie identiche del sit
 un unico file HTML autonomo: sito-mappe/index.html (pubblicato online) e index.html
 nella radice del repo (da aprire con un doppio clic).
 """
+import base64
 import csv
 import datetime
 import glob
@@ -497,7 +498,9 @@ def main():
     with open(os.path.join(HERE, "template.html"), encoding="utf-8") as f:
         html = f.read()
     blob = json.dumps(dati, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
-    for old, new in (("/*DATI*/null", blob), ("/*TITOLO*/", TITOLO)):
+    with open(os.path.join(HERE, "logo.png"), "rb") as f:  # logo incluso nella pagina: online va solo index.html
+        logo = "data:image/png;base64," + base64.b64encode(f.read()).decode()
+    for old, new in (("/*DATI*/null", blob), ("/*TITOLO*/", TITOLO), ("/*LOGO*/", logo)):
         if old not in html:
             raise SystemExit(f"Segnaposto {old} non trovato in template.html")
         html = html.replace(old, new)
