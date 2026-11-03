@@ -32,6 +32,11 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.normpath(os.path.join(HERE, ".."))
 TITOLO = "Rete bus UdR 5"
 
+# proxy del tempo reale (Cloudflare Worker, codice nel repository UDR11, cartella proxy-realtime): ritardi delle
+# corse di oggi, abbinate col trip_id del GTFS. Nel Worker AGENCY_ID deve comprendere BusInternationalService.
+# Vuoto = sito con i soli orari programmati.
+REALTIME = "https://udr-realtime.antonini1971.workers.dev"
+
 # calendari: si usano calendar.txt e calendar_dates.txt del GTFS (eccezioni comprese);
 # qui solo le etichette da mostrare. Un service_id non elencato prende i giorni della settimana
 # ("Lunedì–Venerdì", "Sabato", …).
@@ -432,7 +437,10 @@ def make_tab(svc, d, ts, st_by_trip, stops, stop_idx, route_lines, comuni, timep
             o[i] = minutes(r["departure_time"] or r["arrival_time"])
             if timepoint and r.get("timepoint") == "1":
                 princ[i] = 1
-        corse.append({"id": t.get("trip_short_name") or t["trip_id"], "shape": t["shape_id"], "o": o})
+        corsa = {"id": t.get("trip_short_name") or t["trip_id"], "shape": t["shape_id"], "o": o}
+        if corsa["id"] != t["trip_id"]:
+            corsa["tid"] = t["trip_id"]  # trip_id del GTFS, per abbinare i dati in tempo reale
+        corse.append(corsa)
 
     # fermate principali: quelle con orario garantito del GTFS (timepoint = 1); se il GTFS non le
     # distingue, la prima fermata in ogni comune, i nodi di interscambio e una ogni PRINC_OGNI_MIN minuti
@@ -500,7 +508,8 @@ def main():
     blob = json.dumps(dati, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
     with open(os.path.join(HERE, "logo.png"), "rb") as f:  # logo incluso nella pagina: online va solo index.html
         logo = "data:image/png;base64," + base64.b64encode(f.read()).decode()
-    for old, new in (("/*DATI*/null", blob), ("/*TITOLO*/", TITOLO), ("/*LOGO*/", logo)):
+    for old, new in (("/*DATI*/null", blob), ("/*TITOLO*/", TITOLO), ("/*LOGO*/", logo),
+                     ('/*REALTIME*/""', json.dumps(REALTIME))):
         if old not in html:
             raise SystemExit(f"Segnaposto {old} non trovato in template.html")
         html = html.replace(old, new)
